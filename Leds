@@ -1,0 +1,102 @@
+#include <Arduino.h>
+#include <LiquidCrystal.h>
+
+// LCD
+#define LCD_RS  33
+#define LCD_E   26
+#define LCD_D0   4
+#define LCD_D1  18
+#define LCD_D2  25
+#define LCD_D3  21
+#define LCD_D4  27
+#define LCD_D5  14
+#define LCD_D6  13
+#define LCD_D7  32
+
+LiquidCrystal lcd(LCD_RS, LCD_E,
+                  LCD_D0, LCD_D1, LCD_D2, LCD_D3,
+                  LCD_D4, LCD_D5, LCD_D6, LCD_D7);
+
+// ------------------ ADC Potenciómetros ------------------
+#define POT1      34   // GPIO34 (ADC1_CH6) - solo entrada
+#define POT2      35   // GPIO35 (ADC1_CH7) - solo entrada
+
+// LEDS
+#define LED_R     19   // D19
+#define LED_V      5   // D5
+#define LED_A      2   // D2
+
+
+const int CH_R = 0;        // canal PWM rojo
+const int CH_V = 1;        // canal PWM verde
+const int PWM_FREQ = 5000; // frecuencia en Hz
+const int PWM_RES  = 8;    // resolución 8 bits (0-255)
+
+// Conversión 12 bits (0-4095) -> 8 bits (0-255)
+static inline uint8_t to8bits(int v12) {
+  if (v12 < 0) v12 = 0;
+  if (v12 > 4095) v12 = 4095;
+  return (uint8_t)((v12 * 255 + 2047) / 4095); 
+}
+
+void imprimirEncabezado() {
+  // Fila 1: títulos
+  lcd.setCursor(0, 0);   lcd.print("Rojo:");
+  lcd.setCursor(6, 0);   lcd.print("Verde:");
+  lcd.setCursor(13, 0);  lcd.print("Azul:");
+}
+
+void setup() {
+  // UART a 9600 (como pediste)
+  Serial.begin(9600);
+
+  // LCD
+  delay(100);
+  lcd.begin(16, 2);
+  lcd.clear();
+  imprimirEncabezado();
+  lcd.setCursor(0, 1);
+  lcd.print("                "); // limpia fila 2
+
+  // LED RGB
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_V, OUTPUT);
+  pinMode(LED_A, OUTPUT);
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_V, LOW);
+  digitalWrite(LED_A, LOW);
+
+  //inicializar PWM
+  ledcSetup(CH_R, PWM_FREQ, PWM_RES);
+  ledcSetup(CH_V, PWM_FREQ, PWM_RES);
+  ledcAttachPin(LED_R, CH_R);
+  ledcAttachPin(LED_V, CH_V);
+}
+
+void loop() {
+  // Lectura del potenciometro
+  int pot1_12 = analogRead(POT1);
+  int pot2_12 = analogRead(POT2);
+
+  // Pasado a 8 bits
+  uint8_t rojo   = to8bits(pot1_12);
+  uint8_t verde  = to8bits(pot2_12);
+
+  //controlar intensidad con PWM
+  ledcWrite(CH_R, rojo);
+  ledcWrite(CH_V, verde);
+
+  // UART
+  Serial.print("ROJO=");
+  Serial.print(rojo);
+  Serial.print(", VERDE=");
+  Serial.println(verde);
+
+  // Para que se mire bien en la pantalla
+  char linea2[17];
+  snprintf(linea2, sizeof(linea2), "R:%3u V:%3u   ", rojo, verde); // %3u para que esté fijo
+  lcd.setCursor(0, 1);
+  lcd.print(linea2);
+
+  delay(150);
+}
