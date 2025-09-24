@@ -1,0 +1,46 @@
+#include <Arduino.h>
+#include <LiquidCrystal.h>
+
+
+//DEFINICIÓN DE PINES
+#define LCD_RS  33
+#define LCD_E   26
+#define LCD_D0   4
+#define LCD_D1  18
+#define LCD_D2  25
+#define LCD_D3  21
+#define LCD_D4  27
+#define LCD_D5  14
+#define LCD_D6  13
+#define LCD_D7  32
+
+// Constructor para MODO 8 BITS (rs, enable, d0, d1, d2, d3, d4, d5, d6, d7)
+LiquidCrystal lcd(LCD_RS, LCD_E,
+                  LCD_D0, LCD_D1, LCD_D2, LCD_D3,
+                  LCD_D4, LCD_D5, LCD_D6, LCD_D7);
+
+
+void imprimirEncabezado() {
+  //lo distribuyo para que quede bien
+  lcd.setCursor(0, 0);   lcd.print("Rojo:");
+  lcd.setCursor(5, 0);   lcd.print("Verde:");
+  lcd.setCursor(11, 0);  lcd.print("Azul:");
+}
+
+void setup() {
+  // Inicialización obligatoria para 16 col x 2 filas
+  lcd.begin(16, 2);
+  lcd.clear();
+
+  delay(50);
+
+  // Encabezado de la línea superior
+  imprimirEncabezado();
+
+  lcd.setCursor(0, 1);
+  lcd.print("                "); // 16 espacios
+}
+
+void loop() {
+  
+}
