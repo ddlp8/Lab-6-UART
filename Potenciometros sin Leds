@@ -26,8 +26,7 @@ LiquidCrystal lcd(LCD_RS, LCD_E,
 #define LED_V      5   // D5
 #define LED_A      2   // D2
 
-// Conversión 12 bits (0-4095) -> 8 bits (0-255) con redondeo
-static inline uint8_t to8bits(int v12) {
+// Conversión 12 bits (0-4095) -> 8 bits (0-255)
 
   if (v12 < 0) v12 = 0;
   if (v12 > 4095) v12 = 4095;
@@ -53,7 +52,7 @@ void setup() {
   lcd.setCursor(0, 1);
   lcd.print("                "); // limpia fila 2
 
-  // LED RGB (opcional si luego usas PWM/encendido)
+//todavia no
   pinMode(LED_R, OUTPUT);
   pinMode(LED_V, OUTPUT);
   pinMode(LED_A, OUTPUT);
