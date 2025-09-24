@@ -1,0 +1,150 @@
+//LAB 6 UART
+#include <Arduino.h> 
+#include <LiquidCrystal.h>
+
+// Aquí incluyo las librerías necesarias: la de Arduino y la de la pantalla LCD.
+
+// Ahora defino los pines de conexión entre la LCD y el ESP32.
+#define LCD_RS  33
+#define LCD_E   26
+#define LCD_D0   4
+#define LCD_D1  18
+#define LCD_D2  25
+#define LCD_D3  21
+#define LCD_D4  27
+#define LCD_D5  14
+#define LCD_D6  13
+#define LCD_D7  32
+
+// Creo el objeto lcd pasando como parámetros los pines que acabo de definir.
+LiquidCrystal lcd(LCD_RS, LCD_E,
+                  LCD_D0, LCD_D1, LCD_D2, LCD_D3,
+                  LCD_D4, LCD_D5, LCD_D6, LCD_D7);
+
+// ------------------ ADC Potenciómetros ------------------
+// Aquí defino en qué pines conecté los potenciómetros, los usaré como entradas analógicas.
+#define POT1      34   // GPIO34 (ADC1_CH6) - solo entrada
+#define POT2      35   // GPIO35 (ADC1_CH7) - solo entrada
+
+// LEDS
+// Defino qué pin usaré para cada LED: rojo, verde y azul.
+#define LED_R     19   // D19
+#define LED_V      5   // D5
+#define LED_A      2   // D2
+
+// Aquí configuro los parámetros para manejar los LEDs con PWM.
+const int CH_R = 0;        // canal PWM para el rojo
+const int CH_V = 1;        // canal PWM para el verde
+const int PWM_FREQ = 5000; // frecuencia de la señal PWM
+const int PWM_RES  = 8;    // resolución de 8 bits (valores entre 0-255)
+
+// Parte C
+// Para el azul voy a controlarlo con UART, así que también le doy un canal PWM.
+const int CH_A = 2;                 
+volatile uint8_t azul_cnt = 0;      // inicializo el valor del azul en 0
+
+// Esta función la hice para convertir los valores leídos de los potenciómetros
+// que vienen en 12 bits (0-4095) a 8 bits (0-255). 
+// Esto me sirve porque el PWM lo manejo en 8 bits.
+static inline uint8_t to8bits(int v12) {
+  if (v12 < 0) v12 = 0;           // si se pasa por debajo de 0 lo corrijo
+  if (v12 > 4095) v12 = 4095;     // si pasa del máximo lo limito
+  return (uint8_t)((v12 * 255 + 2047) / 4095); // hago la conversión
+}
+
+// Esta función la uso para imprimir los títulos “Rojo, Verde, Azul” 
+// en la primera línea de la pantalla LCD.
+void imprimirEncabezado() {
+  lcd.setCursor(0, 0);   lcd.print("Rojo:");
+  lcd.setCursor(6, 0);   lcd.print("Verde:");
+  lcd.setCursor(13, 0);  lcd.print("Azul:");
+}
+
+void setup() {
+  // Inicializo la comunicación serial para enviar mensajes al monitor.
+  Serial.begin(9600);
+
+  // Espero un poco y luego inicializo la pantalla LCD de 16x2.
+  delay(100);
+  lcd.begin(16, 2);
+  lcd.clear();
+  imprimirEncabezado(); // llamo a la función para escribir los títulos
+  lcd.setCursor(0, 1);
+  lcd.print("                "); // borro la segunda fila
+
+  // Configuro los pines de los LEDs como salidas y los dejo apagados.
+  pinMode(LED_R, OUTPUT);
+  pinMode(LED_V, OUTPUT);
+  pinMode(LED_A, OUTPUT);
+  digitalWrite(LED_R, LOW);
+  digitalWrite(LED_V, LOW);
+  digitalWrite(LED_A, LOW);
+
+  // Aquí configuro el PWM para el LED rojo y verde.
+  ledcSetup(CH_R, PWM_FREQ, PWM_RES);
+  ledcSetup(CH_V, PWM_FREQ, PWM_RES);
+  ledcAttachPin(LED_R, CH_R);
+  ledcAttachPin(LED_V, CH_V);
+
+  // También configuro el PWM para el LED azul y lo inicio en 0.
+  ledcSetup(CH_A, PWM_FREQ, PWM_RES);
+  ledcAttachPin(LED_A, CH_A);
+  ledcWrite(CH_A, azul_cnt);
+
+  // Por monitor serial aviso cómo se controla el LED azul (+ y -).
+  Serial.println("Control de Led Azul: use '+' para incrementar y '-' para decrementar");
+  Serial.print("AZUL="); Serial.println(azul_cnt);
+}
+
+void loop() {
+  // Primero leo los valores de los potenciómetros (12 bits cada uno).
+  int pot1_12 = analogRead(POT1);
+  int pot2_12 = analogRead(POT2);
+
+  // Luego convierto esos valores de 12 bits a 8 bits usando mi función.
+  uint8_t rojo   = to8bits(pot1_12);
+  uint8_t verde  = to8bits(pot2_12);
+
+  // Con esos valores actualizo el brillo de los LEDs rojo y verde con PWM.
+  ledcWrite(CH_R, rojo);
+  ledcWrite(CH_V, verde);
+
+  // También envío por UART los valores actuales de rojo y verde para monitorearlos.
+  Serial.print("ROJO=");
+  Serial.print(rojo);
+  Serial.print(", VERDE=");
+  Serial.println(verde);
+
+  // Aquí manejo el LED azul desde el monitor serial.
+  // Si recibo un '+' lo aumento, si recibo un '-' lo disminuyo.
+  bool changed = false;
+  while (Serial.available()) {
+    char c = (char)Serial.read();
+    if (c == '+') { 
+      if (azul_cnt < 255) { azul_cnt++; changed = true; }
+    } else if (c == '-') {
+      if (azul_cnt > 0)   { azul_cnt--; changed = true; }
+    }
+  }
+  // Si cambió el valor, actualizo el PWM del azul y también lo muestro por UART.
+  if (changed) {
+    ledcWrite(CH_A, azul_cnt);
+    Serial.print("AZUL="); Serial.println(azul_cnt);
+  }
+
+  // En la pantalla LCD muestro los valores actualizados.
+  // En la segunda línea pongo el valor de rojo y verde.
+  char linea2[17];
+  snprintf(linea2, sizeof(linea2), "R:%3u V:%3u   ", rojo, verde); //%3u para que esten fijas
+  lcd.setCursor(0, 1);
+  lcd.print(linea2);
+
+//azul
+  lcd.setCursor(12, 1);
+  char bufA[5];
+  snprintf(bufA, sizeof(bufA), "A%3u", azul_cnt);
+  lcd.print(bufA);
+
+  // Finalmente, agrego un pequeño delay para estabilidad.
+  delay(150);
+}
