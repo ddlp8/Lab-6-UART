@@ -21,21 +21,21 @@ LiquidCrystal lcd(LCD_RS, LCD_E,
 #define POT1      34   // GPIO34 (ADC1_CH6) - solo entrada
 #define POT2      35   // GPIO35 (ADC1_CH7) - solo entrada
 
-// ------------------ LED RGB (por si los usas luego) ------------------
+// LEDS
 #define LED_R     19   // D19
 #define LED_V      5   // D5
 #define LED_A      2   // D2
 
 // Conversión 12 bits (0-4095) -> 8 bits (0-255) con redondeo
 static inline uint8_t to8bits(int v12) {
-  // Asegurar rango y redondear correctamente
+
   if (v12 < 0) v12 = 0;
   if (v12 > 4095) v12 = 4095;
   return (uint8_t)((v12 * 255 + 2047) / 4095); 
 }
 
 void imprimirEncabezado() {
-  // Fila 0: títulos
+  // Fila 1: títulos
   lcd.setCursor(0, 0);   lcd.print("Rojo:");
   lcd.setCursor(6, 0);   lcd.print("Verde:");
   lcd.setCursor(13, 0);  lcd.print("Azul:");
