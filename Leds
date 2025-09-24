@@ -33,7 +33,6 @@ const int PWM_FREQ = 5000; // frecuencia en Hz
 const int PWM_RES  = 8;    // resolución 8 bits (0-255)
 
 // Conversión 12 bits (0-4095) -> 8 bits (0-255)
-static inline uint8_t to8bits(int v12) {
   if (v12 < 0) v12 = 0;
   if (v12 > 4095) v12 = 4095;
   return (uint8_t)((v12 * 255 + 2047) / 4095); 
@@ -47,7 +46,6 @@ void imprimirEncabezado() {
 }
 
 void setup() {
-  // UART a 9600 (como pediste)
   Serial.begin(9600);
 
   // LCD
